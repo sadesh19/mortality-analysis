@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Causes of Deaths Worldwide - Clustering Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.1/plotly.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        select, input, button {
+            padding: 10px 15px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        .error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        th {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .cluster-0 { color: #e74c3c; }
+        .cluster-1 { color: #3498db; }
+        .cluster-2 { color: #2ecc71; }
+        .cluster-3 { color: #f39c12; }
+        .cluster-4 { color: #9b59b6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 Causes of Deaths Worldwide</h1>
+            <h2>Advanced Clustering Analysis Dashboard</h2>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="fileInput">Upload CSV Data:</label>
+                <input type="file" id="fileInput" accept=".csv" />
+            </div>
+            
+
+            
+            <div class="control-group">
+                <label for="yearFromFilter">From Year:</label>
+                <select id="yearFromFilter">
+                    <option value="">Start Year</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="yearToFilter">To Year:</label>
+                <select id="yearToFilter">
+                    <option value="">End Year</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="countryFilter">Filter by Country:</label>
+                <select id="countryFilter">
+                    <option value="">All Countries</option>
+                </select>
+            </div>
+            
+            <button onclick="performClustering()">🔄 Run Clustering Analysis</button>
+            <button onclick="downloadResults()">💾 Download Results</button>
+        </div>
+        
+        <div id="statsContainer" class="stats-grid" style="display:none;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalRecords">0</div>
+                <div class="stat-label">Total Records</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalCountries">0</div>
+                <div class="stat-label">Countries</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="yearRange">-</div>
+                <div class="stat-label">Year Range</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="numClustersDisplay">0</div>
+                <div class="stat-label">Clusters</div>
+            </div>
+        </div>
+        
+        <div id="errorContainer"></div>
+        <div id="loadingContainer" class="loading" style="display:none;">
+            🔄 Processing data and performing clustering analysis...
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📊 Cluster Visualization (PCA Projection)</div>
+            <div id="clusterPlot" style="height: 500px;"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📈 Top Causes of Death by Cluster</div>
+            <div id="causesChart" style="height: 400px;"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">🌍 Geographic Distribution of Clusters</div>
+            <div id="geoChart" style="height: 500px;"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📋 Detailed Data Table</div>
+            <div class="data-table">
+                <table id="dataTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let processedData = [];
+        let clusterResults = [];
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create sample data for demonstration
+            createSampleData();
+            
+            // Set up event listeners
+            document.getElementById('yearFromFilter').addEventListener('change', filterData);
+            document.getElementById('yearToFilter').addEventListener('change', filterData);
+            document.getElementById('countryFilter').addEventListener('change', filterData);
+        });
+        
+        function createSampleData() {
+            // Generate sample causes of death data
+            const countries = ['United States', 'China', 'India', 'Brazil', 'Russia', 'Japan', 'Germany', 'United Kingdom', 'France', 'Italy', 'Canada', 'Australia', 'Mexico', 'South Korea', 'Spain', 'Argentina', 'South Africa', 'Egypt', 'Nigeria', 'Kenya'];
+            const years = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022];
+            const causes = ['Cardiovascular diseases', 'Cancer', 'Respiratory diseases', 'Diabetes', 'Alzheimer disease', 'Kidney disease', 'Accidents', 'Influenza and pneumonia', 'Suicide', 'Liver disease'];
+            
+            rawData = [];
+            let id = 1;
+            
+            countries.forEach(country => {
+                years.forEach(year => {
+                    let row = {
+                        'Country/Territory': country,
+                        'Year': year,
+                        'Country Code': country.substring(0, 3).toUpperCase()
+                    };
+                    
+                    // Generate realistic death rates for each cause
+                    causes.forEach(cause => {
+                        let baseRate = Math.random() * 200 + 50; // Base rate between 50-250
+                        
+                        // Add some country-specific and year-specific variations
+                        if (country === 'United States' && cause === 'Cardiovascular diseases') baseRate += 100;
+                        if (country === 'Japan' && cause === 'Cancer') baseRate += 80;
+                        if (year >= 2020 && cause === 'Respiratory diseases') baseRate += 30; // COVID effect
+                        
+                        row[cause] = Math.round(baseRate + (Math.random() - 0.5) * 40);
+                    });
+                    
+                    rawData.push(row);
+                    id++;
+                });
+            });
+            
+            console.log('Sample data created:', rawData.length, 'records');
+            updateFilters();
+            updateStats();
+            performClustering();
+        }
+        
+
+        
+
+        
+        function updateFilters() {
+            const yearFromFilter = document.getElementById('yearFromFilter');
+            const yearToFilter = document.getElementById('yearToFilter');
+            const countryFilter = document.getElementById('countryFilter');
+            
+            // Get unique years and countries
+            const years = [...new Set(rawData.map(d => d.Year))].sort();
+            const countries = [...new Set(rawData.map(d => d['Country/Territory']))].sort();
+            
+            // Update year from filter
+            yearFromFilter.innerHTML = '<option value="">Start Year</option>';
+            years.forEach(year => {
+                yearFromFilter.innerHTML += `<option value="${year}">${year}</option>`;
+            });
+            
+            // Update year to filter
+            yearToFilter.innerHTML = '<option value="">End Year</option>';
+            years.forEach(year => {
+                yearToFilter.innerHTML += `<option value="${year}">${year}</option>`;
+            });
+            
+            // Update country filter
+            countryFilter.innerHTML = '<option value="">All Countries</option>';
+            countries.forEach(country => {
+                countryFilter.innerHTML += `<option value="${country}">${country}</option>`;
+            });
+        }
+        
+        function filterData() {
+            const yearFromFilter = document.getElementById('yearFromFilter').value;
+            const yearToFilter = document.getElementById('yearToFilter').value;
+            const countryFilter = document.getElementById('countryFilter').value;
+            
+            processedData = rawData.filter(row => {
+                let yearMatch = true;
+                
+                // Handle year range filtering
+                if (yearFromFilter && yearToFilter) {
+                    yearMatch = row.Year >= parseInt(yearFromFilter) && row.Year <= parseInt(yearToFilter);
+                } else if (yearFromFilter) {
+                    yearMatch = row.Year >= parseInt(yearFromFilter);
+                } else if (yearToFilter) {
+                    yearMatch = row.Year <= parseInt(yearToFilter);
+                }
+                
+                const countryMatch = !countryFilter || row['Country/Territory'] === countryFilter;
+                return yearMatch && countryMatch;
+            });
+            
+            updateStats();
+            performClustering();
+        }
+        
+        function updateStats() {
+            const data = processedData.length > 0 ? processedData : rawData;
+            
+            document.getElementById('totalRecords').textContent = data.length;
+            document.getElementById('totalCountries').textContent = new Set(data.map(d => d['Country/Territory'])).size;
+            
+            const years = data.map(d => d.Year).filter(y => y);
+            const minYear = Math.min(...years);
+            const maxYear = Math.max(...years);
+            document.getElementById('yearRange').textContent = `${minYear} - ${maxYear}`;
+            
+            document.getElementById('statsContainer').style.display = 'grid';
+        }
+        
+
+        
+        function performClustering() {
+            showLoading(true);
+            
+            setTimeout(() => {
+                try {
+                    const data = processedData.length > 0 ? processedData : rawData;
+                    const numClusters = 3; // Fixed to 3 clusters
+                    
+                    // Extract numeric columns (causes of death)
+                    const numericColumns = Object.keys(data[0]).filter(key => 
+                        typeof data[0][key] === 'number' && 
+                        key !== 'Year' && 
+                        !key.includes('Code')
+                    );
+                    
+                    // Normalize data
+                    const normalizedData = normalizeData(data, numericColumns);
+                    
+                    // Perform K-means clustering
+                    const clusters = kMeans(normalizedData, numClusters);
+                    
+                    // Add cluster assignments to data
+                    clusterResults = data.map((row, index) => ({
+                        ...row,
+                        Cluster: clusters[index]
+                    }));
+                    
+                    document.getElementById('numClustersDisplay').textContent = numClusters;
+                    
+                    // Update visualizations
+                    updateClusterPlot();
+                    updateCausesChart();
+                    updateGeoChart();
+                    updateDataTable();
+                    
+                    showLoading(false);
+                } catch (error) {
+                    showError('Error during clustering: ' + error.message);
+                    showLoading(false);
+                }
+            }, 100);
+        }
+        
+        function normalizeData(data, columns) {
+            const normalized = [];
+            const stats = {};
+            
+            // Calculate mean and std for each column
+            columns.forEach(col => {
+                const values = data.map(row => row[col] || 0);
+                const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                const std = Math.sqrt(variance);
+                stats[col] = { mean, std: std || 1 };
+            });
+            
+            // Normalize data
+            data.forEach(row => {
+                const normalizedRow = [];
+                columns.forEach(col => {
+                    const value = (row[col] || 0 - stats[col].mean) / stats[col].std;
+                    normalizedRow.push(value);
+                });
+                normalized.push(normalizedRow);
+            });
+            
+            return normalized;
+        }
+        
+        function kMeans(data, k) {
+            const maxIterations = 100;
+            const dimensions = data[0].length;
+            
+            // Initialize centroids randomly
+            let centroids = [];
+            for (let i = 0; i < k; i++) {
+                const centroid = [];
+                for (let j = 0; j < dimensions; j++) {
+                    centroid.push(Math.random() * 2 - 1);
+                }
+                centroids.push(centroid);
+            }
+            
+            let assignments = new Array(data.length);
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                // Assign points to closest centroid
+                let changed = false;
+                for (let i = 0; i < data.length; i++) {
+                    let minDistance = Infinity;
+                    let closestCentroid = 0;
+                    
+                    for (let j = 0; j < k; j++) {
+                        const distance = euclideanDistance(data[i], centroids[j]);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestCentroid = j;
+                        }
+                    }
+                    
+                    if (assignments[i] !== closestCentroid) {
+                        assignments[i] = closestCentroid;
+                        changed = true;
+                    }
+                }
+                
+                if (!changed) break;
+                
+                // Update centroids
+                for (let j = 0; j < k; j++) {
+                    const clusterPoints = data.filter((_, i) => assignments[i] === j);
+                    if (clusterPoints.length > 0) {
+                        for (let d = 0; d < dimensions; d++) {
+                            centroids[j][d] = clusterPoints.reduce((sum, point) => sum + point[d], 0) / clusterPoints.length;
+                        }
+                    }
+                }
+            }
+            
+            return assignments;
+        }
+        
+        function euclideanDistance(a, b) {
+            return Math.sqrt(a.reduce((sum, val, i) => sum + Math.pow(val - b[i], 2), 0));
+        }
+        
+        function updateClusterPlot() {
+            // Simple PCA projection for visualization (using first 2 principal components approximation)
+            const data = clusterResults;
+            const numericColumns = Object.keys(data[0]).filter(key => 
+                typeof data[0][key] === 'number' && 
+                key !== 'Year' && 
+                key !== 'Cluster' && 
+                !key.includes('Code')
+            );
+            
+            // Create scatter plot data
+            const traces = [];
+            const clusterColors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e67e22', '#34495e', '#1abc9c'];
+            
+            const uniqueClusters = [...new Set(data.map(d => d.Cluster))];
+            
+            uniqueClusters.forEach(cluster => {
+                const clusterData = data.filter(d => d.Cluster === cluster);
+                
+                traces.push({
+                    x: clusterData.map(d => d[numericColumns[0]] || 0),
+                    y: clusterData.map(d => d[numericColumns[1]] || 0),
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: `Cluster ${cluster}`,
+                    marker: {
+                        color: clusterColors[cluster % clusterColors.length],
+                        size: 8,
+                        opacity: 0.7
+                    },
+                    text: clusterData.map(d => `${d['Country/Territory']} (${d.Year})`),
+                    hovertemplate: '<b>%{text}</b><br>Cluster: ' + cluster + '<extra></extra>'
+                });
+            });
+            
+            const layout = {
+                xaxis: { title: numericColumns[0] || 'Component 1' },
+                yaxis: { title: numericColumns[1] || 'Component 2' },
+                showlegend: true,
+                hovermode: 'closest',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+            
+            Plotly.newPlot('clusterPlot', traces, layout, {responsive: true});
+        }
+        
+        function updateCausesChart() {
+            const data = clusterResults;
+            const numericColumns = Object.keys(data[0]).filter(key => 
+                typeof data[0][key] === 'number' && 
+                key !== 'Year' && 
+                key !== 'Cluster' && 
+                !key.includes('Code')
+            );
+            
+            // Calculate average values by cluster
+            const uniqueClusters = [...new Set(data.map(d => d.Cluster))];
+            const traces = [];
+            
+            uniqueClusters.forEach(cluster => {
+                const clusterData = data.filter(d => d.Cluster === cluster);
+                const averages = numericColumns.map(col => {
+                    const values = clusterData.map(d => d[col] || 0);
+                    return values.reduce((a, b) => a + b, 0) / values.length;
+                });
+                
+                traces.push({
+                    x: numericColumns,
+                    y: averages,
+                    type: 'bar',
+                    name: `Cluster ${cluster}`,
+                    opacity: 0.8
+                });
+            });
+            
+            const layout = {
+                barmode: 'group',
+                xaxis: { title: 'Causes of Death', tickangle: -45 },
+                yaxis: { title: 'Average Deaths per 100,000' },
+                showlegend: true,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+            
+            Plotly.newPlot('causesChart', traces, layout, {responsive: true});
+        }
+        
+        function updateGeoChart() {
+            const data = clusterResults;
+            const clusterColors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e67e22', '#34495e', '#1abc9c'];
+            
+            // Group by country and get most recent cluster assignment
+            const countryData = {};
+            data.forEach(row => {
+                const country = row['Country/Territory'];
+                if (!countryData[country] || row.Year > countryData[country].Year) {
+                    countryData[country] = row;
+                }
+            });
+            
+            const trace = {
+                type: 'choropleth',
+                locations: Object.values(countryData).map(d => d['Country Code'] || d['Country/Territory']),
+                z: Object.values(countryData).map(d => d.Cluster),
+                text: Object.values(countryData).map(d => d['Country/Territory']),
+                colorscale: clusterColors.slice(0, Math.max(...data.map(d => d.Cluster)) + 1).map((color, i) => [i / Math.max(...data.map(d => d.Cluster)), color]),
+                hovertemplate: '<b>%{text}</b><br>Cluster: %{z}<extra></extra>'
+            };
+            
+            const layout = {
+                geo: {
+                    showframe: false,
+                    showcoastlines: true,
+                    projection: { type: 'natural earth' }
+                },
+                title: 'Cluster Distribution by Country',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+            
+            Plotly.newPlot('geoChart', [trace], layout, {responsive: true});
+        }
+        
+        function updateDataTable() {
+            const data = clusterResults.slice(0, 100); // Show first 100 rows
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            
+            if (data.length === 0) return;
+            
+            // Create table header
+            const headers = Object.keys(data[0]);
+            thead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+            
+            // Create table body
+            tbody.innerHTML = data.map(row => {
+                const clusterClass = `cluster-${row.Cluster}`;
+                return '<tr>' + headers.map(h => {
+                    const value = row[h];
+                    const cellClass = h === 'Cluster' ? clusterClass : '';
+                    return `<td class="${cellClass}">${typeof value === 'number' ? value.toFixed(1) : value}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
+        }
+        
+        function downloadResults() {
+            if (clusterResults.length === 0) {
+                showError('No clustering results to download. Please run clustering first.');
+                return;
+            }
+            
+            const csv = convertToCSV(clusterResults);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'clustering_results.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(h => {
+                    const value = row[h];
+                    return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
+                }).join(','))
+            ].join('\n');
+            
+            return csvContent;
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loadingContainer').style.display = show ? 'block' : 'none';
+        }
+        
+        function showError(message) {
+            document.getElementById('errorContainer').innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                document.getElementById('errorContainer').innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
